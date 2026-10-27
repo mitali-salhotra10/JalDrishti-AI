@@ -1,0 +1,2 @@
+system:index,analysis_scale_m,bare_ground_km2,boundary_area_km2,built-up_km2,crops_km2,district,flooded_vegetation_km2,grass_km2,shrub_and_scrub_km2,snow_and_ice_km2,trees_km2,water_km2,year,.geo
+0,100,1.5524754723345589E7,5273.745,3.785647569004059E8,3.2577507466392845E8,Palghar,7.301084528858761E7,703867.5695044423,1.1345092341156251E9,646859.0843175552,3.041602225869785E9,2.1749236957693785E8,2023,"{""type"":""MultiPoint"",""coordinates"":[]}"

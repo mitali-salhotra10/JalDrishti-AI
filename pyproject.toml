@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jaldrishti"
+version = "0.1.0"
+description = "GIS-based watershed prioritisation and decision-support framework for Maharashtra, India"
+readme = "README.md"
+authors = [
+    { name = "Mitali Salhotra", email = "mitalisalhotra@gmail.com" }
+]
+license = { text = "Proprietary / License Decision Pending" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "geopandas>=0.14.0",
+    "shapely>=2.0.0",
+    "pyogrio>=0.7.0",
+    "pyproj>=3.6.0",
+    "matplotlib>=3.7.0",
+    "earthengine-api>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "jupyterlab>=4.0.0",
+    "nbconvert>=7.0.0",
+    "nbformat>=5.9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

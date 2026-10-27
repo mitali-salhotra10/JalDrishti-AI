@@ -1,0 +1,15 @@
+# JalDrishti-AI Dependencies
+numpy>=1.24.0
+pandas>=2.0.0
+geopandas>=0.14.0
+shapely>=2.0.0
+pyogrio>=0.7.0
+pyproj>=3.6.0
+matplotlib>=3.7.0
+earthengine-api>=1.0.0
+
+# Development & Testing
+pytest>=7.0.0
+jupyterlab>=4.0.0
+nbformat>=5.9.0
+nbconvert>=7.0.0

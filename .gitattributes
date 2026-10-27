@@ -1,0 +1,18 @@
+# Text file line endings
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary GIS files
+*.shp binary
+*.shx binary
+*.dbf binary
+*.prj text eol=lf
+*.fix binary
+*.gpkg binary
+*.png binary
+*.svg text
