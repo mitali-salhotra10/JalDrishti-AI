@@ -1,0 +1,8 @@
+Scenario_ID,Description,Normalization,Filtered_Core_Basins,Mean_Score,Std_Score,Min_Score,Max_Score,Correlation_with_AHP_Rho
+S1_Equal_Pillars,Equal weights (25%) across all 4 pillars; equal within-pillar weights.,standard,False,43.53,6.09,25.96,56.14,0.886
+S2_AHP_Expert,"Analytical Hierarchy Process (AHP) calibrated to state guidelines (Climate 35%, Ag 30%, Runoff 20%, Infiltration 15%).",standard,False,47.39,8.13,24.98,60.91,1.0
+S3_Shannon_Entropy,Objective Shannon Entropy weights derived from information dispersion contrast across basins.,standard,False,28.26,9.11,15.71,63.01,0.4991
+S4_Managed_Aquifer_Recharge,"Subsurface Managed Aquifer Recharge (MAR): prioritizes permeable sandy strata, rolling relief, and acute drought frequency.",standard,False,45.46,8.61,23.37,68.04,0.6603
+S5_Surface_Water_Harvesting,"Surface Water Harvesting (SWH): prioritizes impermeable vertisols (low seepage), high runoff depth, and cropland density.",standard,False,41.77,6.28,23.19,53.8,0.8374
+S6_Robust_Core_Ex_Border,AHP weighting evaluated exclusively on the 402 full-coverage (>=90%) catchments to eliminate border edge-effects.,standard,True,48.71,7.49,24.98,60.91,
+S7_Winsorized_AHP,AHP model with 1st-99th percentile winsorized normalization to mitigate coastal precipitation outliers.,winsorized,False,47.8,8.88,23.13,62.54,0.9936

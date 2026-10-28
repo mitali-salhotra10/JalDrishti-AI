@@ -69,6 +69,8 @@ scratch/
 credentials.json
 client_secrets.json
 .env
+.streamlit/secrets.toml
+.streamlit/credentials.toml
 
 # Large raw datasets (>100 MB) excluded to prevent upload timeouts and LFS quota exhaustion.
 # Kept locally on disk; documented in data/raw/README.md with SHA-256 and GEE/Drive retrieval instructions.

@@ -1,6 +1,6 @@
 # JalDrishti-AI: Watershed and Village Multi-Scale Spatial Aggregation Pipeline
 # Author: JalDrishti-AI Team
-# License: Apache-2.0 or project default
+# License: Apache-2.0
 
 import argparse
 import time
@@ -23,13 +23,14 @@ def run_spatial_aggregation(
     basins_shp: Path = None,
     validation_csv: Path = None,
     village_rainfall_csv: Path = None,
-    village_landcover_csv: Path = None,
+    village_integrated_csv: Path = None,
     out_csv: Path = None,
-    out_gpkg: Path = None
+    out_gpkg: Path = None,
+    version: str = "v2"
 ):
     """
-    Executes the vectorized area-weighted polygon overlay translating village-level
-    rainfall and land-cover metrics onto the 518 HydroATLAS Level 8 catchments.
+    Executes vectorized area-weighted polygon overlay translating village-level
+    rainfall, land-cover, terrain, and soil indicators onto the 518 HydroATLAS Level 8 catchments.
     """
     if project_root is None:
         project_root = get_project_root()
@@ -45,15 +46,16 @@ def run_spatial_aggregation(
         validation_csv = interim_dir / "jaldrishti_watershed_validation_518_basins.csv"
     if village_rainfall_csv is None:
         village_rainfall_csv = raw_dir / "maharashtra_village_historical_rainfall_2001_2025_v2.csv"
-    if village_landcover_csv is None:
-        village_landcover_csv = raw_dir / "maharashtra_village_landcover_2021.csv"
+    if village_integrated_csv is None:
+        village_integrated_csv = processed_dir / "maharashtra_village_integrated_indicators_v1.csv"
+    
     if out_csv is None:
-        out_csv = processed_dir / "jaldrishti_watersheds_with_village_indicators.csv"
+        out_csv = processed_dir / f"jaldrishti_watersheds_with_village_indicators_{version}.csv"
     if out_gpkg is None:
-        out_gpkg = processed_dir / "jaldrishti_watersheds_with_village_indicators.gpkg"
+        out_gpkg = processed_dir / f"jaldrishti_watersheds_with_village_indicators_{version}.gpkg"
 
     print("=" * 70)
-    print("JALDRISHTI-AI: WATERSHED & VILLAGE SPATIAL AGGREGATION")
+    print(f"JALDRISHTI-AI: WATERSHED & VILLAGE SPATIAL AGGREGATION ({version.upper()})")
     print(f"Project Root: {project_root}")
     print("=" * 70)
 
@@ -78,32 +80,43 @@ def run_spatial_aggregation(
     gdf_basins_utm = gdf_basins.to_crs(epsg=32643)
     gdf_basins_utm["basin_geom_area_km2"] = gdf_basins_utm.geometry.area / 1e6
 
-    # 2. Load Village Datasets (Rainfall & Land Cover)
-    print(f"Loading village historical rainfall dataset: {village_rainfall_csv}...")
+    # 2. Load Village Boundaries (.geo) and Integrated Indicators
+    print(f"Loading village boundary geometries from: {village_rainfall_csv.name}...")
     t0 = time.time()
-    rf_cols = [
-        "area_id", "district", "subdistric", "village", "vlcode",
-        "baseline_mean_annual_mm_2001_2020", "baseline_sd_annual_mm_2001_2020",
-        "rainfall_2024_mm", "rainfall_2025_mm", "rainfall_anomaly_2025_pct",
-        ".geo"
-    ]
-    df_villages = pd.read_csv(village_rainfall_csv, usecols=rf_cols)
-    print(f"Loaded {len(df_villages):,} village rows in {time.time()-t0:.2f}s")
+    df_geo = pd.read_csv(village_rainfall_csv, usecols=["area_id", ".geo"])
+    print(f"Loaded {len(df_geo):,} GeoJSON strings in {time.time()-t0:.2f}s")
 
-    print("Parsing GeoJSON village boundaries...")
+    print("Parsing GeoJSON village geometries into Shapely objects...")
     t0 = time.time()
-    geoms = shapely.from_geojson(df_villages[".geo"].values)
-    gdf_villages = gpd.GeoDataFrame(df_villages.drop(columns=[".geo"]), geometry=geoms, crs="EPSG:4326")
+    geoms = shapely.from_geojson(df_geo[".geo"].values)
+    gdf_villages = gpd.GeoDataFrame(df_geo[["area_id"]], geometry=geoms, crs="EPSG:4326")
     print(f"Parsed {len(gdf_villages):,} geometries in {time.time()-t0:.2f}s")
 
-    # Load 2021 ESA WorldCover LULC
-    print(f"Loading village 2021 land cover dataset: {village_landcover_csv}...")
-    df_lulc = pd.read_csv(village_landcover_csv)
-    lulc_cols = [
-        "area_id", "tree_cover", "shrubland", "grassland", "cropland",
-        "built_up", "bare_sparse", "water", "herbaceous_wetland", "mangroves"
+    # Load Village Indicators Table
+    print(f"Loading integrated village indicators: {village_integrated_csv.name}...")
+    t0 = time.time()
+    df_indicators = pd.read_csv(village_integrated_csv)
+    print(f"Loaded {len(df_indicators):,} rows x {df_indicators.shape[1]} columns in {time.time()-t0:.2f}s")
+
+    # Define Indicator Columns to Aggregate
+    ind_cols = [
+        # Climate / Drought
+        "baseline_mean_annual_mm_2001_2020", "baseline_sd_annual_mm_2001_2020",
+        "rainfall_cv_pct", "drought_years_count_2001_2025", "drought_frequency_pct",
+        "rainfall_2024_mm", "rainfall_2025_mm", "rainfall_anomaly_2025_pct",
+        # Land Cover
+        "cropland", "tree_cover", "shrubland", "grassland",
+        "built_up", "bare_sparse", "water", "herbaceous_wetland", "mangroves",
+        "natural_veg_cover_pct",
+        # Terrain v2
+        "elevation_mean_m", "slope_mean_deg",
+        # SoilGrids v2
+        "sand_0_5cm", "clay_0_5cm", "silt_0_5cm", "soc_0_5cm",
+        "sand_5_15cm", "clay_5_15cm", "silt_5_15cm", "soc_5_15cm",
+        "infiltration_proxy"
     ]
-    gdf_villages = gdf_villages.merge(df_lulc[lulc_cols], on="area_id", how="left")
+    # Filter to only columns present in df_indicators
+    ind_cols = [c for c in ind_cols if c in df_indicators.columns]
 
     print("Reprojecting villages to UTM Zone 43N (EPSG:32643)...")
     t0 = time.time()
@@ -111,7 +124,7 @@ def run_spatial_aggregation(
     print(f"Villages reprojected in {time.time()-t0:.2f}s")
 
     # 3. Vectorized Polygon Intersection
-    print("\nFinding candidate intersecting village-basin pairs...")
+    print("\nFinding candidate intersecting village-basin pairs (sjoin)...")
     t0 = time.time()
     pairs = gpd.sjoin(
         gdf_villages_utm[["area_id", "geometry"]],
@@ -121,7 +134,7 @@ def run_spatial_aggregation(
     )
     print(f"Found {len(pairs):,} candidate pairs in {time.time()-t0:.2f}s")
 
-    print("Computing exact intersection polygons and areas...")
+    print("Computing exact intersection polygons and areas (shapely)...")
     t0 = time.time()
     v_geoms = gdf_villages_utm.set_index("area_id")["geometry"].loc[pairs["area_id"]].values
     b_geoms = gdf_basins_utm.set_index("HYBAS_ID")["geometry"].loc[pairs["HYBAS_ID"]].values
@@ -137,13 +150,7 @@ def run_spatial_aggregation(
 
     # Attach village attributes to intersection fragments
     print("Attaching village indicators to fragments...")
-    ind_cols = [
-        "baseline_mean_annual_mm_2001_2020", "baseline_sd_annual_mm_2001_2020",
-        "rainfall_2024_mm", "rainfall_2025_mm", "rainfall_anomaly_2025_pct",
-        "tree_cover", "shrubland", "grassland", "cropland", "built_up",
-        "bare_sparse", "water", "herbaceous_wetland", "mangroves"
-    ]
-    df_v_attrs = gdf_villages.set_index("area_id")[ind_cols]
+    df_v_attrs = df_indicators.set_index("area_id")[ind_cols]
     pairs_with_attrs = pairs_clean.join(df_v_attrs, on="area_id")
 
     # 4. Perform Area-Weighted Zonal Aggregation for Each Basin
@@ -170,7 +177,6 @@ def run_spatial_aggregation(
 
         return pd.Series(res)
 
-    # Pandas 2.2+ forward compatible with include_groups=False
     try:
         basin_agg = pairs_with_attrs.groupby("HYBAS_ID").apply(aggregate_basin, include_groups=False)
     except TypeError:
@@ -197,22 +203,19 @@ def run_spatial_aggregation(
 
     final_df["village_coverage_flag"] = final_df["village_coverage_pct"].apply(classify_coverage)
 
-    # Compute derived village rainfall CV (%)
-    final_df["v_rainfall_baseline_cv_pct"] = (
-        final_df["v_baseline_sd_annual_mm_2001_2020"] / final_df["v_baseline_mean_annual_mm_2001_2020"]
-    ) * 100
-
-    # Reorder and rename columns cleanly
+    # Standardize and humanize column names
     rename_dict = {
         "SUB_AREA": "sub_area_km2",
         "UP_AREA": "up_area_km2",
         "preliminar": "preliminary_screening_score",
         "v_baseline_mean_annual_mm_2001_2020": "village_rainfall_baseline_mean_mm",
         "v_baseline_sd_annual_mm_2001_2020": "village_rainfall_baseline_sd_mm",
+        "v_rainfall_cv_pct": "village_rainfall_cv_pct",
+        "v_drought_years_count_2001_2025": "village_drought_years_count",
+        "v_drought_frequency_pct": "village_drought_frequency_pct",
         "v_rainfall_2024_mm": "village_rainfall_2024_mm",
         "v_rainfall_2025_mm": "village_rainfall_2025_mm",
         "v_rainfall_anomaly_2025_pct": "village_rainfall_anomaly_2025_pct",
-        "v_rainfall_baseline_cv_pct": "village_rainfall_baseline_cv_pct",
         "v_cropland": "village_cropland_pct",
         "v_tree_cover": "village_tree_cover_pct",
         "v_shrubland": "village_shrubland_pct",
@@ -222,23 +225,38 @@ def run_spatial_aggregation(
         "v_water": "village_water_pct",
         "v_herbaceous_wetland": "village_herbaceous_wetland_pct",
         "v_mangroves": "village_mangroves_pct",
+        "v_natural_veg_cover_pct": "village_natural_veg_pct",
+        "v_elevation_mean_m": "village_elevation_mean_m",
+        "v_slope_mean_deg": "village_slope_mean_deg",
+        "v_sand_0_5cm": "village_sand_0_5cm_g_kg",
+        "v_clay_0_5cm": "village_clay_0_5cm_g_kg",
+        "v_silt_0_5cm": "village_silt_0_5cm_g_kg",
+        "v_soc_0_5cm": "village_soc_0_5cm_dg_kg",
+        "v_sand_5_15cm": "village_sand_5_15cm_g_kg",
+        "v_clay_5_15cm": "village_clay_5_15cm_g_kg",
+        "v_silt_5_15cm": "village_silt_5_15cm_g_kg",
+        "v_soc_5_15cm": "village_soc_5_15cm_dg_kg",
+        "v_infiltration_proxy": "village_infiltration_proxy"
     }
     final_df = final_df.rename(columns=rename_dict)
 
+    # Export CSV
     final_df.to_csv(out_csv, index=False)
     print(f"\nSaved aggregated watershed table to: {out_csv}")
     print(f"Final shape: {final_df.shape[0]} rows x {final_df.shape[1]} columns")
 
+    # Export GeoPackage
     gdf_final = gpd.GeoDataFrame(final_df, geometry=gdf_basins["geometry"], crs="EPSG:4326")
     gdf_final.to_file(out_gpkg, driver="GPKG")
     print(f"Saved GIS GeoPackage to: {out_gpkg}")
 
-    print("\n[SUCCESS] Area-weighted spatial aggregation completed successfully!")
+    print(f"\n[SUCCESS] Area-weighted spatial aggregation ({version}) completed successfully!")
     return final_df
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="JalDrishti-AI Area-Weighted Spatial Aggregation")
     parser.add_argument("--root", type=str, default=None, help="Project root directory")
+    parser.add_argument("--version", type=str, default="v2", help="Aggregation version tag (e.g. v1, v2)")
     args = parser.parse_args()
     root_path = Path(args.root) if args.root else None
-    run_spatial_aggregation(project_root=root_path)
+    run_spatial_aggregation(project_root=root_path, version=args.version)

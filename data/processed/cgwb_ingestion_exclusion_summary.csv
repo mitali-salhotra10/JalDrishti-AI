@@ -1,0 +1,6 @@
+stage,filter_criterion,records_excluded,records_remaining,pct_of_original
+1,Unparseable Date / Malformed Timestamp,0,119937,0.0
+2,Outside Decadal Window (2015-2024),76147,43790,63.4892
+3,Missing (NaN) or Negative Depth Value,17,43773,0.0142
+4,"Invalid Coordinates or Outside MH Envelope [15.6-22.1N, 72.6-80.9E]",0,43773,0.0
+5,Duplicate Station-Date Observation (Retained First),21,43752,0.0175

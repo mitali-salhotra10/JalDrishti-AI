@@ -67,6 +67,7 @@ def get_soil_clean_collection(village_fc, tile_scale=8):
     soil_reduced = soil_composite.reduceRegions(
         collection=village_fc,
         reducer=ee.Reducer.mean(),
+        crs="EPSG:4326",
         scale=250,
         tileScale=tile_scale
     )
@@ -209,7 +210,7 @@ def check_task_status():
     if not found:
         print('No tasks found.')
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='JalDrishti-AI Terrain & SoilGrids GEE Pipeline')
     parser.add_argument('--sample', action='store_true', help='Run interactive sample verification (24 villages across 8 districts)')
     parser.add_argument('--start-tasks', action='store_true', help='Submit full batch export tasks for all 44,468 villages to Google Drive')
@@ -226,3 +227,6 @@ if __name__ == '__main__':
         check_task_status()
     else:
         parser.print_help()
+
+if __name__ == '__main__':
+    main()
